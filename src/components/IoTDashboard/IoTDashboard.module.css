@@ -1,0 +1,254 @@
+.dashboard {
+  min-height: 100vh;
+  padding: 2rem;
+  width: 100%;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 2rem;
+}
+
+.spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.6rem;
+  font-weight: 500;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 3rem;
+  gap: 2rem;
+}
+
+.titleSection {
+  flex: 1;
+}
+
+.title {
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 800;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.connectionStatus {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.statusDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.statusDot.connected {
+  background-color: var(--success);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.statusDot.disconnected {
+  background-color: var(--error);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+.statusText {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--white);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.lastUpdate {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.statsSection {
+  margin-bottom: 4rem;
+}
+
+.mainContent {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+}
+
+.mainContent.withDetail {
+  grid-template-columns: 2fr 1fr;
+}
+
+.sensorsGrid {
+  min-width: 0;
+}
+
+.gridHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 2rem;
+}
+
+.sectionTitle {
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: var(--white);
+  margin: 0;
+}
+
+.gridControls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.regionFilter {
+  padding: 0.8rem 1.2rem;
+  background: rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius);
+  color: var(--white);
+  font-size: 1.4rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  min-width: 180px;
+}
+
+.regionFilter:hover,
+.regionFilter:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.regionFilter option {
+  background: var(--gray-800);
+  color: var(--white);
+  padding: 1rem;
+}
+
+.sensors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 2rem;
+  animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.noSensors {
+  text-align: center;
+  padding: 4rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.6rem;
+}
+
+.detailPanel {
+  min-width: 0;
+  animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .mainContent.withDetail {
+    grid-template-columns: 1fr;
+  }
+
+  .detailPanel {
+    order: -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2rem;
+  }
+
+  .gridHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .sensors {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .connectionStatus {
+    justify-content: center;
+  }
+}

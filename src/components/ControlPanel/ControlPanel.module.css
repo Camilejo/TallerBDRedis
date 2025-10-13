@@ -1,0 +1,127 @@
+.panel {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.label {
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--white);
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.select {
+  padding: 0.8rem 1.2rem;
+  background: rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius);
+  color: var(--white);
+  font-size: 1.3rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  min-width: 120px;
+}
+
+.select:hover,
+.select:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.select option {
+  background: var(--gray-800);
+  color: var(--white);
+  padding: 1rem;
+}
+
+.button {
+  padding: 0.8rem 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius);
+  color: var(--white);
+  font-size: 1.3rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+.button.active {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+}
+
+.button.hasAlerts {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  animation: alertPulse 2s infinite;
+}
+
+@keyframes alertPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .panel {
+    width: 100%;
+  }
+
+  .controls {
+    width: 100%;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .control {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+
+  .button {
+    padding: 1rem 1.5rem;
+    font-size: 1.2rem;
+  }
+}

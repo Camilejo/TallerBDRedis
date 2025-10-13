@@ -1,8 +1,60 @@
 .alert {
-    text-align: center;
-    margin-bottom: 2rem;
-    text-transform: uppercase;
-    font-weight: 900;
-    font-size: 1.8rem;
-    
+  text-align: center;
+  margin: 2rem 0;
+  padding: 2rem 3rem;
+  background: rgba(239, 68, 68, 0.15);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--border-radius-lg);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.6rem;
+  letter-spacing: 0.05em;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+  animation: slideInDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.alert::before {
+  content: "⚠️";
+  font-size: 2rem;
+  margin-right: 1rem;
+}
+
+.alert::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
 }

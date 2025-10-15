@@ -1,12 +1,8 @@
-import styles from "./App.module.css"
-import IoTDashboard from "./components/IoTDashboard/IoTDashboard"
+// src/App.tsx
+import IoTDashboard from "./components/IoTDashboard/IoTDashboard";
 
 function App() {
-  return (
-    <div className={styles.app}>
-      <IoTDashboard />
-    </div>
-  )
+  return <IoTDashboard />;
 }
 
-export default App
+export default App;

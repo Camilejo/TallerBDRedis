@@ -73,23 +73,26 @@ export default function useIoTSensors(): UseIoTSensorsReturn {
     const socket: Socket = io("http://localhost:4000");
 
     socket.on("connect", () => {
-      console.log("Conectado al servidor Redis/Socket.io");
+      console.log("✅ Conectado al servidor Redis/Socket.io");
       setIsConnected(true);
     });
 
     socket.on("disconnect", () => {
+      console.warn("⚠️ Desconectado del servidor");
       setIsConnected(false);
     });
 
-    // Si se reciben actualizaciones desde Redis
+    // Cuando el backend publica nuevos datos desde Redis
     socket.on("weather-update", (data) => {
-      console.log("Datos recibidos desde Redis:", data);
+      console.log("📡 Datos recibidos desde Redis:", data);
       setLastUpdate(new Date());
+
+      // Actualiza las estadísticas si llegan datos válidos
       setSystemStats((prev) => ({
         ...prev,
-        averageTemperature: data.temperature,
-        averageHumidity: data.humidity,
-        averagePressure: data.pressure,
+        averageTemperature: data.averageTemperature ?? prev.averageTemperature,
+        averageHumidity: data.averageHumidity ?? prev.averageHumidity,
+        averagePressure: data.averagePressure ?? prev.averagePressure,
         lastUpdate: new Date(),
       }));
     });
@@ -99,12 +102,12 @@ export default function useIoTSensors(): UseIoTSensorsReturn {
     };
   }, []);
 
-  // --- Función para cargar datos del simulador ---
+  // --- Función principal para cargar datos del simulador ---
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
 
-      // Pequeño delay para simular latencia
+      // Simular latencia real
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       const sensorsData = iotSimulator.getSensors();
@@ -117,22 +120,52 @@ export default function useIoTSensors(): UseIoTSensorsReturn {
       setLastUpdate(new Date());
       setIsConnected(true);
 
-      // Cargar historial si hay sensor seleccionado
+      // Cargar historial del sensor seleccionado (si existe)
       if (selectedSensorId) {
         const history = iotSimulator.getSensorHistory(selectedSensorId);
         setSensorHistory(history);
       }
 
-      // Enviar datos del simulador al backend (Redis Publisher)
-      fetch("http://localhost:4000/api/sensors", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(statsData),
-      }).catch(() => {
-        console.warn("No se pudo enviar datos al servidor Redis");
+      // --- Agrupar sensores por ciudad ---
+      const sensorsByCity: Record<string, IoTSensor[]> = {};
+      sensorsData.forEach((sensor) => {
+        const city = sensor.location.city;
+        if (!sensorsByCity[city]) sensorsByCity[city] = [];
+        sensorsByCity[city].push(sensor);
       });
+
+      // --- Enviar promedios por ciudad al backend ---
+      for (const [city, citySensors] of Object.entries(sensorsByCity)) {
+        const avgTemp =
+          citySensors.reduce((sum, s) => sum + s.lastReading.temperature, 0) /
+          citySensors.length;
+        const avgHum =
+          citySensors.reduce((sum, s) => sum + s.lastReading.humidity, 0) /
+          citySensors.length;
+        const avgPress =
+          citySensors.reduce((sum, s) => sum + s.lastReading.pressure, 0) /
+          citySensors.length;
+
+        const cityData = {
+          city,
+          sensors: citySensors.length,
+          averageTemperature: Math.round(avgTemp * 10) / 10,
+          averageHumidity: Math.round(avgHum),
+          averagePressure: Math.round(avgPress),
+          timestamp: new Date(),
+        };
+
+        // Publicar en Redis a través del backend
+        fetch("http://localhost:4000/api/sensors", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(cityData),
+        }).catch(() => {
+          console.warn(`⚠️ No se pudo enviar datos de ${city} al servidor Redis`);
+        });
+      }
     } catch (error) {
-      console.error("Error cargando datos IoT:", error);
+      console.error("❌ Error cargando datos IoT:", error);
       setIsConnected(false);
     } finally {
       setIsLoading(false);
@@ -142,7 +175,7 @@ export default function useIoTSensors(): UseIoTSensorsReturn {
   // --- Inicialización ---
   useEffect(() => {
     loadData();
-    iotSimulator.startSimulation(5); // cada 5s
+    iotSimulator.startSimulation(5); // actualizar cada 5 segundos
     return () => iotSimulator.stopSimulation();
   }, [loadData]);
 

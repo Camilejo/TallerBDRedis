@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
+import { io } from "socket.io-client";
 import TemperatureChart from "../IoTCharts/TemperatureChart";
 import HumidityChart from "../IoTCharts/HumidityChart";
 import PressureChart from "../IoTCharts/PressureChart";
-// import Heatmap from "../IoTCharts/Heatmap"; // omitido por ahora
 
 interface SensorReading {
   timestamp: string;
@@ -26,6 +26,29 @@ export default function IoTDashboard() {
   const [isRunning, setIsRunning] = useState(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // ✅ CONEXIÓN A SOCKET.IO (recibe actualizaciones de Redis)
+  useEffect(() => {
+    const socket = io("http://localhost:4000");
+
+    socket.on("connect", () => {
+      console.log("🔌 Conectado al backend por WebSocket");
+    });
+
+    socket.on("weather-update", (data) => {
+      console.log("📡 Nuevo dato desde Redis:", data);
+      handleIncomingData(data);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("❌ Desconectado del servidor");
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  // Datos iniciales (solo para visualización si aún no hay conexión)
   useEffect(() => {
     const initialData: SensorReading[] = Array.from({ length: 10 }, (_, i) => ({
       timestamp: new Date(Date.now() - (9 - i) * 60000).toISOString(),
@@ -44,6 +67,7 @@ export default function IoTDashboard() {
     setSensors(initialSensors);
   }, []);
 
+  // ✅ Simulador local (solo si no llegan datos desde Redis)
   useEffect(() => {
     if (!isRunning) return;
 
@@ -56,23 +80,47 @@ export default function IoTDashboard() {
     };
   }, [intervalMs, isRunning]);
 
-  const generateNewData = () => {
+  const handleIncomingData = (data: any) => {
+    // Actualiza los sensores según la ciudad recibida
+    setSensors((prev) =>
+      prev.map((s) =>
+        s.location === data.location
+          ? { ...s, temperature: data.temperature, humidity: data.humidity }
+          : s
+      )
+    );
+
+    // Agrega al historial
     const newReading: SensorReading = {
       timestamp: new Date().toISOString(),
-      temperature: 20 + Math.random() * 10,
-      humidity: 60 + Math.random() * 30,
-      pressure: 1010 + Math.random() * 20,
+      temperature: data.temperature ?? 0,
+      humidity: data.humidity ?? 0,
+      pressure: data.pressure ?? 1010,
     };
 
     setHistory((prev) => [...prev.slice(-19), newReading]);
+  };
 
-    setSensors((prev) =>
-      prev.map((s) => ({
-        ...s,
-        temperature: s.temperature + (Math.random() - 0.5) * 2,
-        humidity: Math.max(30, Math.min(95, s.humidity + (Math.random() - 0.5) * 5)),
-      }))
-    );
+  const generateNewData = async () => {
+    // Escoge una ciudad aleatoria
+    const cities = ["Bogotá", "Medellín", "Cali", "Barranquilla"];
+    const randomCity = cities[Math.floor(Math.random() * cities.length)];
+
+    const data = {
+      location: randomCity,
+      temperature: 20 + Math.random() * 10,
+      humidity: 50 + Math.random() * 30,
+      pressure: 1000 + Math.random() * 30,
+    };
+
+    // Envía al backend para que publique en Redis
+    await fetch("http://localhost:4000/api/sensors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    console.log("📤 Dato enviado al backend:", data);
   };
 
   const handleManualUpdate = () => {
@@ -200,9 +248,10 @@ export default function IoTDashboard() {
         >
           <PressureChart history={history} />
 
+          {/* Panel de estadísticas */}
           <div
             style={{
-              background: "rgba(255, 255, 255, 1)",
+              background: "rgba(255,255,255,1)",
               padding: "2rem",
               borderRadius: "16px",
               boxShadow: "0 6px 14px rgba(0,0,0,0.25)",
@@ -212,15 +261,6 @@ export default function IoTDashboard() {
               alignItems: "center",
               textAlign: "center",
               minHeight: "340px",
-              transition: "transform 0.3s ease, box-shadow 0.3s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "scale(1.02)";
-              e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.3)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "scale(1)";
-              e.currentTarget.style.boxShadow = "0 6px 14px rgba(0,0,0,0.25)";
             }}
           >
             <h3
@@ -232,35 +272,33 @@ export default function IoTDashboard() {
                 textShadow: "0 1px 2px rgba(0,0,0,0.2)",
               }}
             >
-              📊 Estadísticas Actuales
+              📊 Estadísticas por Ciudad
             </h3>
-            {history.length > 0 && (
-              <div
-                style={{
-                  fontSize: "1.3rem",
-                  lineHeight: "2",
-                  color: "#1a1a1a",
-                  background: "rgba(250, 250, 250, 0.8)",
-                  padding: "1rem 2rem",
-                  borderRadius: "12px",
-                  boxShadow: "inset 0 0 6px rgba(0,0,0,0.1)",
-                }}
-              >
-                <p>🌡️ Temp actual: <strong>{history[history.length - 1].temperature.toFixed(1)}°C</strong></p>
-                <p>💧 Humedad actual: <strong>{history[history.length - 1].humidity.toFixed(1)}%</strong></p>
-                <p>
-                  🌪️ Presión actual:{" "}
-                  <strong>
-                    {history[history.length - 1]?.pressure !== undefined
-                      ? `${history[history.length - 1].pressure!.toFixed(1)} hPa`
-                      : "N/D"}
-                  </strong>
-                </p>
-                <p>📍 Sensores activos: <strong>{sensors.length}</strong></p>
-              </div>
-            )}
-          </div>
 
+            <div
+              style={{
+                fontSize: "1.1rem",
+                color: "#222",
+                width: "100%",
+                display: "grid",
+                gap: "0.6rem",
+              }}
+            >
+              {sensors.map((s) => (
+                <div
+                  key={s.location}
+                  style={{
+                    background: "rgba(240,240,240,0.9)",
+                    padding: "0.6rem",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <strong>{s.location}</strong> — 🌡️ {s.temperature.toFixed(1)}°C | 💧{" "}
+                  {s.humidity.toFixed(1)}%
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

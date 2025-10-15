@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { io, Socket } from "socket.io-client";
 import {
   IoTSensor,
   SensorHistory,
@@ -6,45 +7,40 @@ import {
   SystemStats,
   UpdateInterval,
   SensorFilter,
-} from "../types"
-import { iotSimulator } from "../data/iotSimulator"
+} from "../types";
+import { iotSimulator } from "../data/iotSimulator";
 
 export interface UseIoTSensorsReturn {
-  // Datos principales
-  sensors: IoTSensor[]
-  filteredSensors: IoTSensor[]
-  selectedSensor: IoTSensor | null
-  sensorHistory: SensorHistory | null
-  alerts: Alert[]
-  systemStats: SystemStats
+  sensors: IoTSensor[];
+  filteredSensors: IoTSensor[];
+  selectedSensor: IoTSensor | null;
+  sensorHistory: SensorHistory | null;
+  alerts: Alert[];
+  systemStats: SystemStats;
 
-  // Estados de carga
-  isLoading: boolean
-  isConnected: boolean
-  lastUpdate: Date | null
+  isLoading: boolean;
+  isConnected: boolean;
+  lastUpdate: Date | null;
 
-  // Acciones
-  selectSensor: (sensorId: string | null) => void
-  refreshData: () => void
-  resolveAlert: (alertId: string) => void
+  selectSensor: (sensorId: string | null) => void;
+  refreshData: () => void;
+  resolveAlert: (alertId: string) => void;
 
-  // Configuración
-  updateInterval: UpdateInterval
-  setUpdateInterval: (interval: UpdateInterval) => void
-  filter: SensorFilter
-  setFilter: (filter: Partial<SensorFilter>) => void
+  updateInterval: UpdateInterval;
+  setUpdateInterval: (interval: UpdateInterval) => void;
+  filter: SensorFilter;
+  setFilter: (filter: Partial<SensorFilter>) => void;
 
-  // Auto-actualización
-  isAutoUpdate: boolean
-  toggleAutoUpdate: () => void
+  isAutoUpdate: boolean;
+  toggleAutoUpdate: () => void;
 }
 
 export default function useIoTSensors(): UseIoTSensorsReturn {
-  // Estados principales
-  const [sensors, setSensors] = useState<IoTSensor[]>([])
-  const [selectedSensorId, setSelectedSensorId] = useState<string | null>(null)
-  const [sensorHistory, setSensorHistory] = useState<SensorHistory | null>(null)
-  const [alerts, setAlerts] = useState<Alert[]>([])
+  // --- Estados principales ---
+  const [sensors, setSensors] = useState<IoTSensor[]>([]);
+  const [selectedSensorId, setSelectedSensorId] = useState<string | null>(null);
+  const [sensorHistory, setSensorHistory] = useState<SensorHistory | null>(null);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [systemStats, setSystemStats] = useState<SystemStats>({
     totalSensors: 0,
     activeSensors: 0,
@@ -56,163 +52,176 @@ export default function useIoTSensors(): UseIoTSensorsReturn {
     lastUpdate: new Date(),
     activeAlerts: 0,
     dataPoints: 0,
-  })
+  });
 
-  // Estados de configuración
-  const [updateInterval, setUpdateInterval] = useState<UpdateInterval>(10)
+  // --- Estados de configuración ---
+  const [updateInterval, setUpdateInterval] = useState<UpdateInterval>(10);
   const [filter, setFilterState] = useState<SensorFilter>({
     region: "all",
     status: "all",
     showInactive: true,
-  })
-  const [isAutoUpdate, setIsAutoUpdate] = useState(true)
+  });
+  const [isAutoUpdate, setIsAutoUpdate] = useState(true);
 
-  // Estados de control
-  const [isLoading, setIsLoading] = useState(true)
-  const [isConnected, setIsConnected] = useState(false)
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+  // --- Control de conexión ---
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  // Función para cargar datos del simulador
-  const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true)
-
-      // Simular pequeña latencia para realismo
-      await new Promise((resolve) => setTimeout(resolve, 100))
-
-      const sensorsData = iotSimulator.getSensors()
-      const alertsData = iotSimulator.getAlerts()
-      const statsData = iotSimulator.getSystemStats()
-
-      setSensors(sensorsData)
-      setAlerts(alertsData)
-      setSystemStats(statsData)
-      setLastUpdate(new Date())
-      setIsConnected(true)
-
-      // Cargar historial del sensor seleccionado si existe
-      if (selectedSensorId) {
-        const history = iotSimulator.getSensorHistory(selectedSensorId)
-        setSensorHistory(history)
-      }
-    } catch (error) {
-      console.error("Error loading IoT data:", error)
-      setIsConnected(false)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [selectedSensorId])
-
-  // Inicializar simulador y cargar datos iniciales
+  // --- Conexión con Socket.io ---
   useEffect(() => {
-    loadData()
+    const socket: Socket = io("http://localhost:4000");
 
-    // Iniciar simulación automática
-    iotSimulator.startSimulation(5) // Actualizar cada 5 segundos internamente
+    socket.on("connect", () => {
+      console.log("Conectado al servidor Redis/Socket.io");
+      setIsConnected(true);
+    });
+
+    socket.on("disconnect", () => {
+      setIsConnected(false);
+    });
+
+    // Si se reciben actualizaciones desde Redis
+    socket.on("weather-update", (data) => {
+      console.log("Datos recibidos desde Redis:", data);
+      setLastUpdate(new Date());
+      setSystemStats((prev) => ({
+        ...prev,
+        averageTemperature: data.temperature,
+        averageHumidity: data.humidity,
+        averagePressure: data.pressure,
+        lastUpdate: new Date(),
+      }));
+    });
 
     return () => {
-      iotSimulator.stopSimulation()
-    }
-  }, [loadData])
+      socket.disconnect();
+    };
+  }, []);
 
-  // Auto-actualización basada en intervalo configurado
+  // --- Función para cargar datos del simulador ---
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      // Pequeño delay para simular latencia
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const sensorsData = iotSimulator.getSensors();
+      const alertsData = iotSimulator.getAlerts();
+      const statsData = iotSimulator.getSystemStats();
+
+      setSensors(sensorsData);
+      setAlerts(alertsData);
+      setSystemStats(statsData);
+      setLastUpdate(new Date());
+      setIsConnected(true);
+
+      // Cargar historial si hay sensor seleccionado
+      if (selectedSensorId) {
+        const history = iotSimulator.getSensorHistory(selectedSensorId);
+        setSensorHistory(history);
+      }
+
+      // Enviar datos del simulador al backend (Redis Publisher)
+      fetch("http://localhost:4000/api/sensors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(statsData),
+      }).catch(() => {
+        console.warn("No se pudo enviar datos al servidor Redis");
+      });
+    } catch (error) {
+      console.error("Error cargando datos IoT:", error);
+      setIsConnected(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedSensorId]);
+
+  // --- Inicialización ---
   useEffect(() => {
-    if (!isAutoUpdate) return
+    loadData();
+    iotSimulator.startSimulation(5); // cada 5s
+    return () => iotSimulator.stopSimulation();
+  }, [loadData]);
 
-    const intervalId = setInterval(() => {
-      loadData()
-    }, updateInterval * 1000)
+  // --- Auto-actualización ---
+  useEffect(() => {
+    if (!isAutoUpdate) return;
+    const id = setInterval(() => loadData(), updateInterval * 1000);
+    return () => clearInterval(id);
+  }, [isAutoUpdate, updateInterval, loadData]);
 
-    return () => clearInterval(intervalId)
-  }, [loadData, updateInterval, isAutoUpdate])
-
-  // Sensor seleccionado
-  const selectedSensor = useMemo(() => {
-    return selectedSensorId
-      ? sensors.find((s) => s.id === selectedSensorId) || null
-      : null
-  }, [sensors, selectedSensorId])
-
-  // Sensores filtrados
-  const filteredSensors = useMemo(() => {
-    return sensors.filter((sensor) => {
-      // Filtro por región
-      if (filter.region !== "all" && sensor.location.region !== filter.region) {
-        return false
-      }
-
-      // Filtro por estado
-      if (filter.status !== "all" && sensor.status !== filter.status) {
-        return false
-      }
-
-      // Filtro por activos/inactivos
-      if (!filter.showInactive && !sensor.isActive) {
-        return false
-      }
-
-      return true
-    })
-  }, [sensors, filter])
-
-  // Acciones
+  // --- Acciones ---
   const selectSensor = useCallback((sensorId: string | null) => {
-    setSelectedSensorId(sensorId)
-
+    setSelectedSensorId(sensorId);
     if (sensorId) {
-      const history = iotSimulator.getSensorHistory(sensorId)
-      setSensorHistory(history)
+      const history = iotSimulator.getSensorHistory(sensorId);
+      setSensorHistory(history);
     } else {
-      setSensorHistory(null)
+      setSensorHistory(null);
     }
-  }, [])
+  }, []);
 
   const refreshData = useCallback(() => {
-    loadData()
-  }, [loadData])
+    loadData();
+  }, [loadData]);
 
   const resolveAlert = useCallback((alertId: string) => {
-    const success = iotSimulator.resolveAlert(alertId)
+    const success = iotSimulator.resolveAlert(alertId);
     if (success) {
-      setAlerts((prev) => prev.filter((alert) => alert.id !== alertId))
+      setAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
     }
-  }, [])
+  }, []);
 
   const setFilter = useCallback((newFilter: Partial<SensorFilter>) => {
-    setFilterState((prev) => ({ ...prev, ...newFilter }))
-  }, [])
+    setFilterState((prev) => ({ ...prev, ...newFilter }));
+  }, []);
 
   const toggleAutoUpdate = useCallback(() => {
-    setIsAutoUpdate((prev) => !prev)
-  }, [])
+    setIsAutoUpdate((prev) => !prev);
+  }, []);
 
+  // --- Derivados ---
+  const selectedSensor = useMemo(
+    () =>
+      selectedSensorId
+        ? sensors.find((s) => s.id === selectedSensorId) || null
+        : null,
+    [sensors, selectedSensorId]
+  );
+
+  const filteredSensors = useMemo(() => {
+    return sensors.filter((sensor) => {
+      if (filter.region !== "all" && sensor.location.region !== filter.region)
+        return false;
+      if (filter.status !== "all" && sensor.status !== filter.status)
+        return false;
+      if (!filter.showInactive && !sensor.isActive) return false;
+      return true;
+    });
+  }, [sensors, filter]);
+
+  // --- Retorno final ---
   return {
-    // Datos principales
     sensors,
     filteredSensors,
     selectedSensor,
     sensorHistory,
     alerts,
     systemStats,
-
-    // Estados de carga
     isLoading,
     isConnected,
     lastUpdate,
-
-    // Acciones
     selectSensor,
     refreshData,
     resolveAlert,
-
-    // Configuración
     updateInterval,
     setUpdateInterval,
     filter,
     setFilter,
-
-    // Auto-actualización
     isAutoUpdate,
     toggleAutoUpdate,
-  }
+  };
 }

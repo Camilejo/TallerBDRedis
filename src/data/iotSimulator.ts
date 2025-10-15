@@ -124,7 +124,7 @@ export class IoTSensorSimulator {
   private readings: Map<string, SensorReading[]> = new Map()
   private alerts: Alert[] = []
   private isRunning = false
-  private intervalId: number | null = null
+  private intervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.initializeSensors()
